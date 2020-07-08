@@ -207,7 +207,7 @@ pub const Builder = struct {
         return LibExeObjStep.createExecutable(
             self,
             name,
-            if (root_src) |p| FileSource{ .path = p } else null,
+            if (root_src) |p| FileSource{ .path = self.dupePath(p) } else null,
             false,
         );
     }
@@ -235,7 +235,7 @@ pub const Builder = struct {
     }
 
     pub fn addObject(self: *Builder, name: []const u8, root_src: ?[]const u8) *LibExeObjStep {
-        const root_src_param = if (root_src) |p| @as(FileSource, .{ .path = p }) else null;
+        const root_src_param = if (root_src) |p| @as(FileSource, .{ .path = self.dupePath(p) }) else null;
         return LibExeObjStep.createObject(self, name, root_src_param);
     }
 
@@ -254,17 +254,17 @@ pub const Builder = struct {
     }
 
     pub fn addSharedLibrary(self: *Builder, name: []const u8, root_src: ?[]const u8, ver: Version) *LibExeObjStep {
-        const root_src_param = if (root_src) |p| @as(FileSource, .{ .path = p }) else null;
+        const root_src_param = if (root_src) |p| @as(FileSource, .{ .path = self.dupePath(p) }) else null;
         return LibExeObjStep.createSharedLibrary(self, name, root_src_param, ver);
     }
 
     pub fn addStaticLibrary(self: *Builder, name: []const u8, root_src: ?[]const u8) *LibExeObjStep {
-        const root_src_param = if (root_src) |p| @as(FileSource, .{ .path = p }) else null;
+        const root_src_param = if (root_src) |p| @as(FileSource, .{ .path = self.dupePath(p) }) else null;
         return LibExeObjStep.createStaticLibrary(self, name, root_src_param);
     }
 
     pub fn addTest(self: *Builder, root_src: []const u8) *LibExeObjStep {
-        return LibExeObjStep.createTest(self, "test", .{ .path = root_src });
+        return LibExeObjStep.createTest(self, "test", .{ .path = self.dupePath(root_src) });
     }
 
     pub fn addAssemble(self: *Builder, name: []const u8, src: []const u8) *LibExeObjStep {
@@ -300,7 +300,7 @@ pub const Builder = struct {
         return the_copy;
     }
 
-    pub fn addWriteFile(self: *Builder, file_path: []const u8, data: []const u8) *WriteFileStep {
+    pub fn addWriteFile(self: *Builder, file_path: []const u8, data: []const u8) *WriteFileStep { //FINDAGAIN
         const write_file_step = self.addWriteFiles();
         write_file_step.add(file_path, data);
         return write_file_step;
@@ -1619,11 +1619,11 @@ pub const LibExeObjStep = struct {
     }
 
     pub fn overrideZigLibDir(self: *LibExeObjStep, dir_path: []const u8) void {
-        self.override_lib_dir = self.builder.dupe(dir_path);
+        self.override_lib_dir = self.builder.dupePath(dir_path);
     }
 
     pub fn setMainPkgPath(self: *LibExeObjStep, dir_path: []const u8) void {
-        self.main_pkg_path = dir_path;
+        self.main_pkg_path = self.builder.dupePath(dir_path);
     }
 
     pub const setDisableGenH = @compileError("deprecated; set the emit_h field directly");
@@ -1675,7 +1675,7 @@ pub const LibExeObjStep = struct {
 
     pub fn addAssemblyFile(self: *LibExeObjStep, path: []const u8) void {
         self.link_objects.append(LinkObject{
-            .AssemblyFile = .{ .path = self.builder.dupe(path) },
+            .AssemblyFile = .{ .path = self.builder.dupePath(path) },
         }) catch unreachable;
     }
 
@@ -1683,7 +1683,7 @@ pub const LibExeObjStep = struct {
         self.addAssemblyFileSource(.{
             .write_file = .{
                 .step = wfs,
-                .basename = self.builder.dupe(basename),
+                .basename = self.builder.dupePath(basename),
             },
         });
     }
@@ -1694,7 +1694,7 @@ pub const LibExeObjStep = struct {
     }
 
     pub fn addObjectFile(self: *LibExeObjStep, path: []const u8) void {
-        self.link_objects.append(LinkObject{ .StaticPath = self.builder.dupe(path) }) catch unreachable;
+        self.link_objects.append(LinkObject{ .StaticPath = self.builder.dupePath(path) }) catch unreachable;
     }
 
     pub fn addObject(self: *LibExeObjStep, obj: *LibExeObjStep) void {
@@ -1718,19 +1718,19 @@ pub const LibExeObjStep = struct {
     }
 
     pub fn addSystemIncludeDir(self: *LibExeObjStep, path: []const u8) void {
-        self.include_dirs.append(IncludeDir{ .RawPathSystem = self.builder.dupe(path) }) catch unreachable;
+        self.include_dirs.append(IncludeDir{ .RawPathSystem = self.builder.dupePath(path) }) catch unreachable;
     }
 
     pub fn addIncludeDir(self: *LibExeObjStep, path: []const u8) void {
-        self.include_dirs.append(IncludeDir{ .RawPath = self.builder.dupe(path) }) catch unreachable;
+        self.include_dirs.append(IncludeDir{ .RawPath = self.builder.dupePath(path) }) catch unreachable;
     }
 
     pub fn addLibPath(self: *LibExeObjStep, path: []const u8) void {
-        self.lib_paths.append(self.builder.dupe(path)) catch unreachable;
+        self.lib_paths.append(self.builder.dupePath(path)) catch unreachable;
     }
 
     pub fn addFrameworkDir(self: *LibExeObjStep, dir_path: []const u8) void {
-        self.framework_dirs.append(self.builder.dupe(dir_path)) catch unreachable;
+        self.framework_dirs.append(self.builder.dupePath(dir_path)) catch unreachable;
     }
 
     pub fn addPackage(self: *LibExeObjStep, package: Pkg) void {
@@ -1740,7 +1740,7 @@ pub const LibExeObjStep = struct {
     pub fn addPackagePath(self: *LibExeObjStep, name: []const u8, pkg_index_path: []const u8) void {
         self.packages.append(Pkg{
             .name = self.builder.dupe(name),
-            .path = self.builder.dupe(pkg_index_path),
+            .path = self.builder.dupePath(pkg_index_path),
         }) catch unreachable;
     }
 
